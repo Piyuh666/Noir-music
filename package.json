@@ -1,0 +1,45 @@
+{
+  "name": "noir-music-bot",
+  "version": "1.0.0",
+  "description": "Noir Music \u2014 production-hardened Discord music bot with centralized bot configuration, multi-Lavalink topology, PostgreSQL, readiness health checks and Glyph Matrix UI.",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "npm run verify:source && npm run verify:architecture && npm run typecheck",
+    "verify:source": "node scripts/verify-source.mjs",
+    "test:coverage": "vitest run --coverage",
+    "test:load": "vitest run tests/load --reporter=verbose",
+    "test:chaos": "vitest run tests/chaos --reporter=verbose",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "deploy:verify": "npm run verify:source && npm run build",
+    "verify:architecture": "node scripts/verify-architecture.mjs",
+    "production:preflight": "node scripts/production-preflight.mjs",
+    "health:check": "node scripts/health-check.mjs"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "lavalink-client": "2.10.4",
+    "@prisma/client": "^5.18.0",
+    "dotenv": "^16.4.5",
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "vitest": "^2.0.5",
+    "prisma": "^5.18.0",
+    "@types/node": "^20.14.15",
+    "@vitest/coverage-v8": "^2.0.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
