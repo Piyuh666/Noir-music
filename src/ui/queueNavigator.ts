@@ -1,0 +1,15 @@
+/** GLYPH-25 strength core: bounded, immutable and invariant-preserving queue navigation. */
+export interface QueueItem{id:string;title:string;durationMs?:number;active?:boolean;locked?:boolean;}
+export interface QueueCursor{index:number;selected:Set<number>;anchor:number|null;}
+const sizeOf=(size:number)=>Math.max(0,Math.min(100000,Number.isFinite(size)?Math.floor(size):0));
+const clamp=(x:number,min:number,max:number)=>Math.max(min,Math.min(max,Number.isFinite(x)?Math.floor(x):min));
+const cleanSet=(s:unknown,size:number)=>new Set<number>(s instanceof Set?[...s].filter(i=>Number.isInteger(i)&&i>=0&&i<size).slice(0,1000):[]);
+export function cursor(size:number):QueueCursor{const n=sizeOf(size);return {index:n?0:-1,selected:new Set(),anchor:null};}
+export function move(c:QueueCursor,size:number,delta:number):QueueCursor{const safe=normalizeCursor(c,size);if(sizeOf(size)<=0)return cursor(0);return {...safe,index:clamp(safe.index+(Number.isFinite(delta)?Math.trunc(delta):0),0,sizeOf(size)-1)};}
+export function focus(c:QueueCursor,index:number,size:number):QueueCursor{const safe=normalizeCursor(c,size);if(sizeOf(size)<=0)return cursor(0);return {...safe,index:clamp(index,0,sizeOf(size)-1)};}
+export function toggle(c:QueueCursor,index:number):QueueCursor{const size=Math.max(index+1,c.index + 1);const safe=normalizeCursor(c,size),i=Math.max(0,Math.floor(index)),s=new Set(safe.selected);if(s.has(i))s.delete(i);else s.add(i);return {...safe,index:i,selected:s,anchor:i};}
+export function range(c:QueueCursor,index:number):QueueCursor{const safe=normalizeCursor(c,Math.max(index+1,c.index + 1)),i=Math.max(0,Math.floor(index)),a=safe.anchor??safe.index,s=new Set(safe.selected);for(let j=Math.min(a,i);j<=Math.max(a,i)&&s.size<1000;j++)s.add(j);return {...safe,index:i,selected:s,anchor:a};}
+export function visible(items:QueueItem[],start:number,count:number):QueueItem[]{const s=Math.max(0,Math.min(Array.isArray(items)?items.length:0,Math.floor(Number.isFinite(start)?start:0))),n=Math.max(1,Math.min(100,Math.floor(Number.isFinite(count)?count:1)));return (Array.isArray(items)?items:[]).slice(s,s+n);}
+export function queueRail(c:QueueCursor,size:number,width=20):string{const safe=normalizeCursor(c,size),w=Math.max(3,Math.min(120,Math.floor(Number.isFinite(width)?width:20)));if(sizeOf(size)<=0)return "[ EMPTY ]";const pos=Math.round((clamp(safe.index,0,sizeOf(size)-1)/Math.max(1,sizeOf(size)-1))*(w-1));return "·".repeat(pos)+"◆"+"·".repeat(Math.max(0,w-pos-1));}
+export function normalizeCursor(c:QueueCursor,size:number):QueueCursor{const n=sizeOf(size);if(n<=0)return cursor(0);const selected=cleanSet(c?.selected,n);return {index:clamp(c?.index??0,0,n-1),selected,anchor:c?.anchor===null||c?.anchor===undefined?null:clamp(c.anchor,0,n-1)};}
+export function cursorHealth(c:QueueCursor,size:number):string[]{const safe=normalizeCursor(c,size),e:string[]=[];if(sizeOf(size)>0&&safe.index<0)e.push("INDEX_INVALID");if(safe.selected.size>1000)e.push("SELECTION_LIMIT");if(safe.anchor!==null&&(safe.anchor<0||safe.anchor>=sizeOf(size)))e.push("ANCHOR_INVALID");return e;}

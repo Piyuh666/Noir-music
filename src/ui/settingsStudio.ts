@@ -1,0 +1,14 @@
+/** GLYPH-25 strength core: deterministic validation, immutable updates and rollback-safe snapshots. */
+export type SettingKind="toggle"|"select"|"number"|"text";
+export interface SettingOption{label:string;value:string;description?:string;}
+export interface SettingField{id:string;label:string;kind:SettingKind;value:string|number|boolean;defaultValue:string|number|boolean;options?:SettingOption[];description?:string;dirty?:boolean;disabled?:boolean;}
+export interface SettingsSection{id:string;title:string;description?:string;fields:SettingField[];}
+const clean=(x:unknown,cap=160)=>String(x??"").replace(/[\r\n]+/g," ").replace(/[\u0000-\u001F\u007F]/g," ").trim().slice(0,cap);
+export function dirtyField(f:SettingField):boolean{return f?.value!==f?.defaultValue;}
+export function dirtyCount(sections:SettingsSection[]):number{return (Array.isArray(sections)?sections:[]).reduce((n,s)=>n+(Array.isArray(s?.fields)?s.fields.filter(dirtyField).length:0),0);}
+export function updateField(sections:SettingsSection[],id:string,value:SettingField["value"]):SettingsSection[]{const key=clean(id,120);return (Array.isArray(sections)?sections:[]).map(s=>({...s,fields:(Array.isArray(s?.fields)?s.fields:[]).map(f=>f.id===key&&!f.disabled?{...f,value,dirty:value!==f.defaultValue}:f)}));}
+export function resetFields(sections:SettingsSection[]):SettingsSection[]{return (Array.isArray(sections)?sections:[]).map(s=>({...s,fields:(Array.isArray(s?.fields)?s.fields:[]).map(f=>({...f,value:f.defaultValue,dirty:false}))}));}
+export function settingsSummary(sections:SettingsSection[]):string{const list=Array.isArray(sections)?sections:[],total=list.reduce((a,s)=>a+(Array.isArray(s?.fields)?s.fields.length:0),0);return `${list.length} SECTIONS · ${total} SETTINGS · ${dirtyCount(list)} CHANGED`;}
+export function validateSettings(sections:SettingsSection[]):string[]{const errors:string[]=[],ids=new Set<string>();for(const s of Array.isArray(sections)?sections:[]){const sid=clean(s?.id,120);if(!sid)errors.push("SECTION_ID_EMPTY");for(const f of Array.isArray(s?.fields)?s.fields:[]){const id=clean(f?.id,120);if(!id)errors.push("FIELD_ID_EMPTY");if(ids.has(id))errors.push(`DUPLICATE_FIELD:${id}`);ids.add(id);if(f?.kind==="select"&&Array.isArray(f.options)&&!f.options.some(o=>String(o?.value)===String(f?.value)))errors.push(`INVALID_OPTION:${id}`);if(!["toggle","select","number","text"].includes(f?.kind))errors.push(`KIND_INVALID:${id}`);}}return [...new Set(errors)];}
+export function snapshotSettings(sections:SettingsSection[]):string{return JSON.stringify((Array.isArray(sections)?sections:[]).map(s=>({id:clean(s?.id,120),fields:(Array.isArray(s?.fields)?s.fields:[]).map(f=>({id:clean(f?.id,120),value:f?.value}))})));}
+export function settingsHealth(sections:SettingsSection[]):string[]{return validateSettings(sections).slice(0,100);}

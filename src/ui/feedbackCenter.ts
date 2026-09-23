@@ -1,0 +1,10 @@
+/** GLYPH-25 strength core: bounded, deterministic, sanitized and de-duplicated feedback. */
+export type NoticeTone="INFO"|"SUCCESS"|"WARN"|"ERROR"|"LOADING";
+export interface Notice{id:string;tone:NoticeTone;title:string;body?:string;ttlMs?:number;actionLabel?:string;actionId?:string;}
+export interface ProgressNotice extends Notice{current:number;total:number;}
+const clean=(x:unknown,cap:number)=>String(x??"").replace(/[\r\n]+/g," ").replace(/[\u0000-\u001F\u007F]/g," ").replace(/\s+/g," ").trim().slice(0,cap);
+export function noticeGlyph(t:NoticeTone):string{return ({INFO:"i",SUCCESS:"✓",WARN:"!",ERROR:"×",LOADING:"…"} as Record<string,string>)[t]??"i";}
+export function noticeLine(n:Notice):string{return `[${noticeGlyph(n?.tone)}] ${clean(n?.title,180)||"NOTICE"}${n?.body?` — ${clean(n.body,420)}`:""}`.slice(0,700);}
+export function progressNotice(n:ProgressNotice,width=20):string{const w=Math.max(1,Math.min(80,Number.isFinite(width)?Math.floor(width):20)),total=typeof n?.total==="number"&&Number.isFinite(n.total)?Math.max(0,n.total):0,current=typeof n?.current==="number"&&Number.isFinite(n.current)?Math.max(0,n.current):0,ratio=total?Math.min(1,current/total):0,fill=Math.round(w*ratio);return `${"█".repeat(fill)}${"·".repeat(w-fill)} ${Math.round(ratio*100)}%`;}
+export function dedupeNotices(items:Notice[]):Notice[]{const seen=new Set<string>(),out:Notice[]=[];for(const n of Array.isArray(items)?items:[]){const id=clean(n?.id,120);if(!id||seen.has(id))continue;seen.add(id);out.push({...n,id,title:clean(n?.title,180)||"NOTICE",body:n?.body?clean(n.body,420):undefined});if(out.length>=100)break;}return out;}
+export function noticeHealth(items:Notice[]):string[]{const errors:string[]=[],seen=new Set<string>();for(const n of Array.isArray(items)?items:[]){const id=clean(n?.id,120);if(!id)errors.push("ID_EMPTY");if(!clean(n?.title,180))errors.push(`TITLE_EMPTY:${id}`);if(seen.has(id))errors.push(`DUPLICATE:${id}`);seen.add(id);if(n?.ttlMs!==undefined&&(!Number.isFinite(n.ttlMs)||n.ttlMs<0||n.ttlMs>86400000))errors.push(`TTL_INVALID:${id}`);}return [...new Set(errors)];}
